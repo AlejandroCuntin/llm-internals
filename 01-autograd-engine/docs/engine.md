@@ -40,7 +40,7 @@ Side effect: gradients accumulate between `backward()` calls. That is why `zero_
 
 ## Why `__pow__` blocks negative bases with fractional exponents
 
-`(-2.0) ** 0.5` in Python returns a **complex number** silently. Inside the graph, a complex `.data` would propagate through every operation, poisoning gradients and weights. You would only notice via unexplained `nan`s much later. The assertion fails fast with a clear message.
+`(-2.0) ** 0.5` in Python returns a **complex number** silently. Inside the graph, a complex `.data` would propagate through every operation, poisoning gradients and weights. You would only notice via unexplained `nan`s much later. The assertion fails fast with a clear and message.
 
 ---
 

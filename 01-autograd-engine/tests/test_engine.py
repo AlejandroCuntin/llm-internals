@@ -14,4 +14,4 @@ def numeric_grad(f, values, idx, eps=1e-6):
     plus[idx].data += eps
     f_plus = f(plus).data
 
-    #-eps
+    #-eps.
