@@ -123,3 +123,13 @@ Developers run tests from:
     - CI pipelines (controlled but distinct)
 
 The try/except makes the test **location-agnostic** — a quality-of-life detail that prevents "works on my machine" friction.
+
+## Why the check() Function?
+
+Every test follows the same pattern:
+    -Build graph with `Value` wrappers
+    -Run `backward()`
+    -Compare each input's `.grad vs numeric_grad`
+
+Without `check()`, each test duplicates 8-10 lines. With it, test become one-liners:
+

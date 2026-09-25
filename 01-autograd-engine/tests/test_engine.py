@@ -36,3 +36,18 @@ def check (f, *datas, tol= 1e-5):
     """
     Verify that backward)() matches numeric gradients for each input of f.
     """
+
+    #Wrap each raw number in a Value so we can call backward().
+
+    values =  [Value(d) for d in datas]
+    out = f(*values) #build the graph 
+    out.backward() #fill .grad on every node
+
+    #Compare the analytic gradient (from backward) with the numeric one (from finite differences) for
+    #each input.numeric_grad
+    for i in range(len(datas)):
+        analytic = values[i].grad
+        numeric = numeric_grad(f,datas,i)
+        assert abs(analytic - numeric) < tol, (
+            f"input {i}: analytic={analytic:.6f}, numeric={numeric:.6f}"
+        )
