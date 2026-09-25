@@ -51,3 +51,23 @@ def check (f, *datas, tol= 1e-5):
         assert abs(analytic - numeric) < tol, (
             f"input {i}: analytic={analytic:.6f}, numeric={numeric:.6f}"
         )
+
+def _name(exc):
+    #Helper to print exception names nicely, including tuples of types.def
+    if isinstance(exc, tuple):
+        return " | ".join(e.__name__ for e in exc)
+    return exc.__name__
+
+def assert_raises(exc, fn):
+    #Minimal replacement for pytest.raise so this file runs without pytest.
+    try:
+        fn()
+    except exc:
+        return          #expected exception: OK
+    except Exception as other:
+        #A different exception was raised: not what we expected.
+        raise AssertionError(
+             f"expected {_name(exc)}, got {type(other).__name__}: {other}"
+        )
+    #If we get here, no exception was raise at all: fail.AssertionError
+    raise AssertionError(f"expected {_name(exc)}, nothing was raised")
