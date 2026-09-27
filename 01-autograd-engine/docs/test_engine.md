@@ -221,3 +221,107 @@ Every test follows the same pattern:
 - Compare each input's `.grad` vs `numeric_grad`
 
 Without `check()`, each test duplicates 8-10 lines. With it, tests become one-liners.
+
+---
+
+## Test Suite: Purpose by Category
+
+Each test group targets a specific failure mode in the autograd engine.
+
+### Binary Arithmetic Operations (`test_add`, `test_mul`, `test_sub`, `test_div`)
+
+**Purpose:** Verify the four fundamental operations compute correct forward values AND correct gradients.
+
+**What they catch:**
+- Wrong gradient formulas (e.g., `mul` returning 1 instead of `b`)
+- Sign errors in subtraction/division gradients
+- Missing `_backward` implementations
+
+Using both positive and negative inputs (2.0, -3.0) ensures sign handling is correct.
+
+### Reverse Operations (`test_radd`, `test_rmul`, `test_rsub`, `test_rtruediv`)
+
+**Purpose:** Verify gradients flow correctly when a Python scalar is on the left side (e.g., `2.0 + a`).
+
+**Why separate:** Python calls `Value.__radd__`, `__rmul__`, etc. when the left operand doesn't know how to handle `Value`. These code paths are distinct from `a + 2.0` and often forgotten. Each test confirms the gradient reaches the `Value` correctly through the reversed operand order.
+
+### Power Operations (`test_pow_integer`, `test_pow_fractional`, `test_pow_negative_base_*`)
+
+**Purpose:** Verify `a ** b` handles all exponent types correctly.
+
+**What they catch:**
+- Power rule for integer exponents: ∂(aⁿ)/∂a = n·aⁿ⁻¹
+- Fractional exponents requiring positive base
+- Negative base with integer exponent (valid)
+- Negative base with fractional exponent → `ValueError` (domain error)
+
+### Nonlinear Functions (`test_tanh`, `test_exp`, `test_log`)
+
+**Purpose:** Verify transcendental functions and their derivatives.
+
+**Gradients verified:**
+- tanh: 1 - tanh²(x) — catches saturation gradient vanishing
+- exp: exp(x) — catches overflow handling
+- log: 1/x — catches domain enforcement (x > 0)
+
+Inputs chosen to avoid numerical extremes while exercising the derivative.
+
+### ReLU Edge Cases (`test_relu_positive`, `test_relu_negative`, `test_relu_at_zero`)
+
+**Purpose:** Lock in the subgradient choice at the non-differentiable point x=0.
+
+**Why three tests:**
+- `x > 0`: gradient = 1 (linear region)
+- `x < 0`: gradient = 0 (dead neuron)
+- `x = 0`: gradient = 0 (subgradient choice — not 0.5, not NaN)
+
+Boundary behavior is where implementations diverge. Explicit test documents the design decision.
+
+### Shared Node / Gradient Accumulation (`test_shared_node_a_times_a`, `test_share_node_mixed`)
+
+**Purpose:** Verify gradients accumulate (via `+=`) when a node feeds multiple paths.
+
+**What they catch:**
+- Using `=` instead of `+=` in `_backward` — overwrites instead of accumulates
+- `a * a`: two paths from same node to output → gradient = 2a
+- `a * a + a`: two different ops sharing input → gradient = 2a + 1
+
+This is the most common subtle bug in autograd engines.
+
+### Composition Tests (`test_composition`, `test_deep_composition`)
+
+**Purpose:** Verify chain rule composes correctly across multiple operations.
+
+- `test_composition`: Mix of arithmetic + nonlinear with two inputs
+- `test_deep_composition`: 5+ nested ops (exp → tanh → square → add → log)
+
+Catches chain rule breakdown in deep graphs where intermediate gradients are wrong.
+
+### Edge Cases & Error Handling (`test_pow_negative_base_fractional_raises`, `test_log_nonpositive_raises`, `test_exp_overflow_raises`)
+
+**Purpose:** Verify domain constraints fail loudly with correct exception types.
+
+- `(-2) ** 0.5` → `ValueError` (complex result)
+- `log(0)`, `log(-1)` → `AssertionError` or `ValueError`
+- `exp(800)` → `OverflowError`
+
+Silent NaN returns are worse than explicit failures.
+
+### Autograd Semantics (`test_backward_seeds_output`, `test_grad_accumulates`, `test_zero_grad`)
+
+**Purpose:** Verify PyTorch-compatible autograd behavior.
+
+- `backward()` seeds output `.grad = 1.0` (chain rule anchor)
+- Multiple `backward()` calls accumulate gradients (no auto zeroing)
+- `zero_grad()` resets all reachable nodes, not just the root
+
+These define the engine's contract with users.
+
+### Helpers & Runner
+
+- `assert_raises` / `_name`: Minimal `pytest.raises` replacement — zero dependencies
+- `if __name__ == "__main__"` runner: Auto-discovers `test_*` functions, prints PASS/FAIL, summary
+
+Allows `python test_engine.py` without pytest installed.
+
+---
