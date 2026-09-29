@@ -51,3 +51,56 @@ class Neuron(Module):
     def __repr__(self):
         kind = "Tanh" if self.nonlin else "Linear"
         return f"{kind}Neuron({len(self.w)})"
+
+# Layer 
+
+class Layer(Module):
+    """
+    A layer of neurons, all receiving the same input vector x.
+    Returns a list of outputs (or a single Value if the layer has one neuron, to make the transition
+    to the next layer seamless).
+    """
+    
+    def __init__(self,nin, nout, **kwargs):
+        self.neurons = [Neuron(nin, **kwargs) for _ in range(nout)]
+    
+    def __call__(self, x):
+        outs = [n(x) for n in self.neurons]
+        #Single-neuron layer returns a bare Value, not a list of one, #so downstream code does not need to
+        # unwrap it
+        return outs[0] if len(outs) == 1 else outs
+
+    def parameters(self):
+        return [p for n in self.neurons for p in n.parameters()]
+
+    def _repr__(self):
+        return f"Layer of [{', '.join(str(n) for n in self.neurons)}]"
+
+# MLP
+
+class MLP(Module):
+    """
+    A multi-layer perceptron: a stack of layers.
+
+    Constructed from a list of layer sizes. The last layer is always linear (no tanh), because its output
+    is a prediction, not an activation. Applying tanh there would clamp predictions to (-1,1)
+    and make regression impossible.
+    """
+
+    def __init__(self, nin, nouts):
+        sz = [nin] + nouts
+        self.layers = [
+            Layer(sz[i], sz[i + 1], nonlin = (i != len(nouts) - 1))
+            for i in range(len(nouts))
+        ]
+
+    def __call__(self, x):
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+    def parameters(self):
+        return [p for layer in self.layers for p in layer.parameters()]
+
+    def __repr__(self):
+        return f"MLP of [{', '.join(str(layer) for layer in self.layers)}]"
