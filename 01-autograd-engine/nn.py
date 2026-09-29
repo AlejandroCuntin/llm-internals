@@ -42,8 +42,12 @@ class Neuron(Module):
         #sum(...., self.b) uses b as the starting value of the sum.,
         #so the bias is part of the graph from the start.
 
+        assert len(x) == len(self.w), (
+            f"Neuron expects {len(self.w)} inputs, got {len(x)}"
+        )
+
         act = sum((wi * xi for wi, xi in zip(self.w, x)), self.b)
-        return act.tanh if self.nonlin else act
+        return act.tanh() if self.nonlin else act
 
     def parameters(self):
         return self.w + [self.b]
@@ -73,7 +77,7 @@ class Layer(Module):
     def parameters(self):
         return [p for n in self.neurons for p in n.parameters()]
 
-    def _repr__(self):
+    def __repr__(self):
         return f"Layer of [{', '.join(str(n) for n in self.neurons)}]"
 
 # MLP
