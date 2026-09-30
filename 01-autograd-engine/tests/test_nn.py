@@ -120,3 +120,20 @@ def test_mlp_backward_populates_grads():
     #reach the leaves.
     grads = [p.grad for p in m.parameters()]
     assert any(g != 0.0 for g in grads)
+
+#Runner
+
+if __name__ == "__main__":
+    tests = [(name, obj) for name, obj in sorted(globals().items())
+            if name.startwith("test_") and callable(obj)]
+
+    passed, failed = 0, 0
+    for name, fn in tests:
+        try:
+            fn()
+            print(f"PASS {name}")
+            passed += 1
+        except Exception as e:
+            print(f"FAIL {name}: {e}")  
+            failed += 1
+    print(f"\n {passed} passed, {failed} failed")
