@@ -70,3 +70,21 @@ def test_neuron_zero_grad_resets():
     n.zero_grad()
     for p in n.parameters():
         assert p.grad == 0.0
+
+# Layer
+
+def test_layer_single_neuron_returns_value():
+    l = Layer(2,1)
+    out = l([1.0,2.0])
+    assert isinstance(out, Value)
+
+def test_layer_mutiple_neurons_returns_list():
+    l = Layer(2,4)
+    out = l([1.0, 2.0])
+    assert isinstance(out,list)
+    assert len(out) == 4
+
+def test_layer_parameter_count():
+# 5 neurons * (3 weights + 1 bias) = 20
+    assert Layer(3,5).parameters() == 20
+    
