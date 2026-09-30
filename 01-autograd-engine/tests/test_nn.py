@@ -88,3 +88,35 @@ def test_layer_parameter_count():
 # 5 neurons * (3 weights + 1 bias) = 20
     assert Layer(3,5).parameters() == 20
     
+
+# MLP - Structure
+
+def test_mlp_parameters_count():
+    # [2, 4, 4, 1] -> 4*3 + 4*5 + 1*5 = 12 + 20 + 5 = 37
+    assert len(MLP(2, [4,4,1]).parameters()) == 37
+
+def test_mlp_last_layer_is_linear():
+    # If this fails, someone removed the nonlin=False on the last layer.
+    m = MLP(2, [4,1])
+    assert m.layers[-1].neurons[0].nonlin is False
+
+def test_mlp_hidden_layers_are_tanh():
+    m = MLP(2, [4,4,1])
+    assert m.layers[0].neurons[0].nonlin is True
+    assert m.layers[1].neurons[0].nonlin is True
+
+# MLP - forward and backward
+
+def test_mlp_forward_shaper():
+    m = MLP(2, [4,1])
+    out = m([1.0, 2.0])
+    assert isinstance(out,Value)
+
+def test_mlp_backward_populates_grads():
+    m = MLP(2, [4,4,1])
+    out = m([1.0, 2.0])
+    out.backward()
+    #at least some parameter must receive a nonzero gradient, otherwise the backward pass did not
+    #reach the leaves.
+    grads = [p.grad for p in m.parameters()]
+    assert any(g != 0.0 for g in grads)
