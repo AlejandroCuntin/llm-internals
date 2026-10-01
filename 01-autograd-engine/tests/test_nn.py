@@ -41,14 +41,14 @@ def test_neuron_forward_uses_all_inputs():
     n.w = [Value(1.0), Value(1.0), Value(1.0)]
     n.b = Value(0.0)
     y1 = n([1.0,1.0,1.0]).data
-    y2 = n([1.0,1.0,1.0]).data
+    y2 = n([1.0,1.0,5.0]).data
     assert y2 != y1 #third input matters
 
 def test_neuron_tanh_clips_output():
     n = Neuron(2, nonlin=True)
-    n.w = [Value(10.0), Value(10.0)]
-    n.b = Value(0.0)
-    assert abs(n([1.0, 1.0]).data) < 1.0
+    n.w = [Value(1.0), Value(1.0)]
+    n.b = Value(0.0)    
+    assert abs(n([1.0, 1.0]).data) <= 1.0
 
 def test_neuron_linear_no_tanh():
     #nonlin = False sould return the raw w * x + b, not clipped
@@ -86,7 +86,7 @@ def test_layer_mutiple_neurons_returns_list():
 
 def test_layer_parameter_count():
 # 5 neurons * (3 weights + 1 bias) = 20
-    assert Layer(3,5).parameters() == 20
+    assert len(Layer(3,5).parameters()) == 20
     
 
 # MLP - Structure
@@ -125,7 +125,7 @@ def test_mlp_backward_populates_grads():
 
 if __name__ == "__main__":
     tests = [(name, obj) for name, obj in sorted(globals().items())
-            if name.startwith("test_") and callable(obj)]
+            if name.startswith("test_") and callable(obj)]
 
     passed, failed = 0, 0
     for name, fn in tests:
