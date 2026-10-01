@@ -1,40 +1,36 @@
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, FancyArrowPatch
 
-
-# Color palette
-POS_WEIGHT = "#2c7fb8"     # blue for positive weights
-NEG_WEIGHT = "#d95f02"     # orange for negative weights
-NEURON_EDGE = "#333333"
-NEURON_ACTIVE = "#fdd49e"
-NEURON_INACTIVE = "#ffffff"
-TEXT_COLOR = "#333333"
-
-
-def draw_network(model, x=None, save_path=None, show=True, title=None):
+def draw_network(model, x=None, save_path=None, show=True, title=None,
+                 show_values=False):
     """
     Draw an MLP as a layered neural network diagram.
 
     Args:
-        model:      an MLP instance from nn.py
-        x:          optional input vector. If given, forward pass runs
-                    and activations are shown as neuron colors.
-        save_path:  file to save (png, svg, or pdf)
-        show:       call plt.show() at the end
-        title:      optional title above the diagram
+        model: an MLP instance from nn.py
+        x: optional input vector. If given, forward pass is run and
+           activations are shown as neuron colors.
+        save_path: if given, save the figure there (png or svg).
+        show: if True, call plt.show().
+        title: optional title.
+        show_values: if True, print activation values to the right of
+                     each neuron. Off by default for a clean diagram.
     """
     layers = model.layers
-    sizes = [len(layers[0].neurons[0].w)]     # input size
+    sizes = [len(layers[0].neurons[0].w)]  # input size
     for layer in layers:
         sizes.append(len(layer.neurons))
 
     n_layers = len(sizes)
     max_neurons = max(sizes)
 
-    # Compute activations if an input was provided.
-    activations = None
+    # Layer spacing (horizontal). Wider than 1.0 to leave room for
+    # labels to the right of each neuron without overlapping the next layer.
+    layer_spacing = 1.8
+
+    # Compute activations by running the forward pass.
+    activations = [list(x)] if x is not None else None
     if x is not None:
-        activations = [list(x)]
         h = x
         for layer in layers:
             h = layer(h)
@@ -42,56 +38,56 @@ def draw_network(model, x=None, save_path=None, show=True, title=None):
                 h = [h]
             activations.append([v.data for v in h])
 
-    fig, ax = plt.subplots(figsize=(n_layers * 2.2, max(max_neurons * 0.9, 3)))
+    fig, ax = plt.subplots(figsize=(n_layers * 2.6, max(max_neurons * 0.9, 3)))
     fig.patch.set_facecolor("white")
 
-    # Compute layer positions: each layer on its own x, neurons stacked on y.
+    # Layered positions: each layer has an x-coordinate, neurons spread on y.
     positions = []
     for i, size in enumerate(sizes):
-        y_start = -(size - 1) / 2
-        positions.append([(i, y_start + j) for j in range(size)])
+        x_pos = i * layer_spacing
+        y_positions = [j - (size - 1) / 2 for j in range(size)]
+        positions.append([(x_pos, y) for y in y_positions])
 
-    # Connections (weights)
+    # Draw connections (weights) first, so circles go on top.
     for i, layer in enumerate(layers):
         for j, neuron in enumerate(layer.neurons):
             x1, y1 = positions[i + 1][j]
             for k, w in enumerate(neuron.w):
                 x0, y0 = positions[i][k]
-                _draw_weight(ax, (x0, y0), (x1, y1), w.data)
+                _draw_connection(ax, (x0, y0), (x1, y1), w.data)
 
-    # Neurons
-    for i, layer_pos in enumerate(positions):
-        for j, (x0, y0) in enumerate(layer_pos):
-            if i == 0 or activations is None:
-                color = NEURON_INACTIVE
+    # Draw neurons.
+    for i, layer_positions in enumerate(positions):
+        for j, (x0, y0) in enumerate(layer_positions):
+            if i == 0:
+                color = "white"
                 label = ""
             else:
-                val = activations[i][j]
-                color = _activation_color(val)
-                label = f"{val:.2f}"
+                color_val = activations[i][j] if activations else 0.0
+                color = _activation_color(color_val)
+                label = f"{color_val:.2f}" if (activations and show_values) else ""
             _draw_neuron(ax, (x0, y0), color, label)
 
-    #Bias markers: small squares below each non-input neuron
+    # Draw bias markers: small squares to the right of each non-input neuron.
     for i, layer in enumerate(layers):
         for j, neuron in enumerate(layer.neurons):
             x0, y0 = positions[i + 1][j]
-            b = neuron.b.data
-            _draw_bias(ax, (x0 + 0.45, y0), b)
+            _draw_bias(ax, (x0, y0), neuron.b.data)
 
-    #Layer labels
+    # Layer labels above each column.
     labels = ["input"] + [f"hidden {i}" for i in range(1, n_layers - 1)] + ["output"]
     for i, label in enumerate(labels):
-        ax.text(i, max_neurons / 2 + 0.9, label, ha="center", va="bottom",
-                fontsize=11, color=TEXT_COLOR, weight="bold")
+        ax.text(i * layer_spacing, max_neurons / 2 + 1.3, label,
+                ha="center", va="bottom", fontsize=11, color="#555")
 
-    # Layout
-    ax.set_xlim(-0.7, n_layers - 0.3)
-    ax.set_ylim(-max_neurons / 2 - 1.2, max_neurons / 2 + 1.5)
+    # Layout.
+    ax.set_xlim(-0.8, (n_layers - 1) * layer_spacing + 0.8)
+    ax.set_ylim(-max_neurons / 2 - 1.2, max_neurons / 2 + 2.0)
     ax.set_aspect("equal")
     ax.axis("off")
 
     if title:
-        ax.set_title(title, fontsize=14, pad=20, color=TEXT_COLOR)
+        ax.set_title(title, fontsize=14, pad=20)
 
     plt.tight_layout()
 
@@ -106,37 +102,35 @@ def draw_network(model, x=None, save_path=None, show=True, title=None):
 
 
 
-# Drawing primitives
+#Drawing primitives
 
 def _draw_neuron(ax, pos, color, label):
-    """A neuron: a circle with an optional label."""
-    circle = Circle(
-        pos, radius=0.32,
-        facecolor=color,
-        edgecolor=NEURON_EDGE,
-        linewidth=1.5,
-        zorder=3,
-    )
+    """
+    Draw a single neuron as a circle.
+    If label is given, it appears to the right of the circle,
+    not inside it, to avoid text overlapping.
+    """
+    circle = Circle(pos, radius=0.30, facecolor=color, edgecolor="#333",
+                    linewidth=1.5, zorder=3)
     ax.add_patch(circle)
     if label:
-        ax.text(pos[0], pos[1], label, ha="center", va="center",
-                fontsize=7, color=TEXT_COLOR, zorder=4)
+        ax.text(pos[0] + 0.40, pos[1], label,
+                ha="left", va="center",
+                fontsize=8, color="#222", zorder=4)
 
 
-def _draw_weight(ax, start, end, weight):
+def _draw_connection(ax, start, end, weight):
     """
-    A weight: a curved line from start to end.
-    Color by sign, thickness by magnitude.
+    Draw a weighted connection. Curved line, color by sign,
+    width by magnitude.
     """
-    # Small offset so lines curve slightly, giving a hand-drawn feel.
-    color = POS_WEIGHT if weight >= 0 else NEG_WEIGHT
-    width = min(abs(weight) * 2.5, 3.5) + 0.4
-    alpha = min(abs(weight) * 0.9 + 0.25, 1.0)
-
+    color = "#d62728" if weight < 0 else "#2ca02c"
+    width = min(abs(weight) * 2, 4.0) + 0.3
+    alpha = min(abs(weight) + 0.2, 1.0)
     arrow = FancyArrowPatch(
         start, end,
-        connectionstyle="arc3,rad=0.08",
         arrowstyle="-",
+        connectionstyle="arc3,rad=0.08",
         color=color,
         linewidth=width,
         alpha=alpha,
@@ -146,27 +140,28 @@ def _draw_weight(ax, start, end, weight):
 
 
 def _draw_bias(ax, pos, bias):
-    """Bias marker: small square below-right of each neuron."""
-    color = POS_WEIGHT if bias >= 0 else NEG_WEIGHT
-    size = min(abs(bias) * 0.15, 0.12) + 0.06
+    """
+    Bias marker: a small square to the right of the neuron.
+    Color by sign, size by magnitude (clamped).
+    """
+    color = "#d62728" if bias < 0 else "#2ca02c"
+    size = min(abs(bias) * 0.08, 0.10) + 0.05
     ax.add_patch(plt.Rectangle(
-        (pos[0] - size / 2, pos[1] - size / 2),
+        (pos[0] + 0.34, pos[1] - size / 2),
         size, size,
         facecolor=color,
-        edgecolor=NEURON_EDGE,
+        edgecolor="#333",
         linewidth=0.8,
         zorder=3,
-        alpha=0.8,
+        alpha=0.85,
     ))
 
 
 def _activation_color(value):
-    """Map an activation value to a soft color."""
-    # Clamp to [-1, 1] assuming tanh output.
+    """Map activation value to a color from blue (negative) to red (positive)."""
     v = max(-1.0, min(1.0, value))
     if v >= 0:
-        # White -> soft orange
-        return (1.0, 1.0 - 0.35 * v, 1.0 - 0.6 * v)
+        r, g, b = 1.0, 1.0 - v, 1.0 - v
     else:
-        # White -> soft blue
-        return (1.0 + 0.6 * v, 1.0 + 0.35 * v, 1.0)
+        r, g, b = 1.0 + v, 1.0 + v, 1.0
+    return (r, g, b)

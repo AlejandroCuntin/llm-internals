@@ -13,26 +13,24 @@ ASSETS = os.path.join(
 )
 os.makedirs(ASSETS, exist_ok=True)
 
-
-# Small network for a clean diagram
 model = MLP(2, [4, 4, 1])
+x = [1.0, 2.0]
 
-# Draw without activations (structure only)
+
 draw_network(
-    model,
-    save_path=os.path.join(ASSETS, "network_structure.svg"),
+    model, x=x,
+    save_path=os.path.join(ASSETS, "network_clean.svg"),
     show=False,
     title="MLP 2 → 4 → 4 → 1",
 )
 
-# Draw with an input, showing activations
-x = [1.0, 2.0]
+
 draw_network(
-    model,
-    x=x,
-    save_path=os.path.join(ASSETS, "network_forward.svg"),
+    model, x=x,
+    save_path=os.path.join(ASSETS, "network_with_values.svg"),
     show=False,
     title="Forward pass with input [1.0, 2.0]",
+    show_values=True,
 )
 
-print("Done. Open the SVGs in assets/.")
+print("Done.")
