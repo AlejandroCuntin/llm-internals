@@ -105,5 +105,45 @@ def draw_state(ax, model, x_input):
     ax.set_xlim(-0.8, (n_layers - 1) * layer_spacing + 0.8)
     ax.set_ylim(-max(sizes) / 2 - 1.2, max(sizes) / 2 + 1.8)
 
+def main():
+    ASSETS = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "assets",
+    )
+    os.makedirs(ASSETS, exist_ok=True)
+
+    # Small model, small dataset, few steps.
+    random.seed(0)
+    xs, ys = make_dataset()
+    model = MLP(2, [3, 1])
+    x_sample = [0.5, -0.3]
+    lr = 0.05
+    n_frames = 60
+    steps_per_frame = 3
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+
+    def update(frame):
+        # Run a few training steps between frames.
+        for _ in range(steps_per_frame):
+            preds = [model(x) for x in xs]
+            loss = sum((p - y) ** 2 for p, y in zip(preds, ys)) / len(xs)
+            model.zero_grad()
+            loss.backward()
+            for p in model.parameters():
+                p.data -= lr * p.grad
+
+        draw_state(ax, model, x_sample)
+        ax.set_title(f"frame {frame} — loss = {loss.data:.4f}", fontsize=12)
+
+    anim = FuncAnimation(fig, update, frames=n_frames, interval=150, repeat=False)
+
+    out = os.path.join(ASSETS, "training_animation.gif")
+    anim.save(out, writer=PillowWriter(fps=8))
+    print(f"Saved {out}")
+
+    plt.close(fig)
 
 
+if __name__ == "__main__":
+    main()
