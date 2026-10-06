@@ -15,7 +15,7 @@ ideas implemented here.
 |---|---|
 | `engine.py` | The `Value` class: a number that remembers how it was created and can compute its own gradient. |
 | `nn.py` | `Neuron`, `Layer`, `MLP` — the architecture layer built on top of `Value`. |
-| `optim.py` | `SGD` — the update rule that turns gradients into learning. |
+| `optim.py` | `SGD`, `Momentum`, `Adam` — the update rules that turn gradients into learning. |
 | `viz.py` | Graphviz-based visualization of the computational graph. |
 | `nn_viz.py` | Matplotlib-based diagram of a neural network's architecture. |
 
@@ -53,6 +53,58 @@ nonlinearity — something a linear model could never do.
 
 ---
 
+## Optimizer comparison
+
+```bash
+python examples/compare_optimizers.py
+```
+
+Trains the same MLP (2 → 6 → 6 → 1) on the same data with SGD, Momentum,
+and Adam. Same steps, same initialization, only the update rule changes.
+
+![Optimizer comparison](assets/optimizer_comparison.png)
+
+| Optimizer | lr    | Final loss (150 steps) |
+|-----------|-------|------------------------|
+| SGD       | 0.10  | 0.0468                 |
+| Momentum  | 0.05  | 0.0195                 |
+| Adam      | 0.01  | 0.0210                 |
+
+Momentum beat Adam here. That is not a bug: Adam's canonical learning
+rate is `0.001`, chosen for large problems. On this small task, the
+default is not the right one — see the sweep below.
+
+---
+
+## Learning rate sweep
+
+```bash
+python examples/hyperparameter_sweep.py
+```
+
+The same Adam optimizer, the same data, the same number of steps.
+Only the learning rate changes:
+
+| Adam lr | Final loss (150 steps) |
+|---------|------------------------|
+| 0.001   | 0.1041                 |
+| 0.003   | 0.0696                 |
+| 0.010   | 0.0231                 |
+| 0.030   | 0.0118                 |
+
+The loss drops monotonically as the learning rate increases. This is
+not the shape you would see on a large problem, where a high learning
+rate causes divergence. Here, the problem is small and well-conditioned
+enough that higher is simply better — up to a point this sweep does not
+reach.
+
+The lesson is not "use a high learning rate". It is that **canonical
+values from papers assume a problem scale this toy example does not
+have**. There is no universal learning rate, and the only way to find
+the right one is to sweep it.
+
+---
+
 ## Visual walkthrough
 
 ```bash
@@ -66,6 +118,23 @@ and finally the backward pass with gradients filled in.
 
 The last panel is the most important: `a.grad` is the **sum** of its two
 paths, which is what `+=` in `_backward` guarantees.
+
+---
+
+## Gradient flow
+
+```bash
+python examples/gradient_evolution.py
+```
+
+Trains a small MLP on `sin(x0) * cos(x1)` and plots two things:
+
+- The loss curve over training (left).
+- The gradient L2 norm per layer over training (right).
+
+A healthy run shows all layer curves decaying smoothly toward a small
+value. A curve collapsing to zero indicates vanishing gradients; one
+that grows indicates instability.
 
 ---
 
@@ -112,9 +181,11 @@ pip install graphviz matplotlib numpy
 
 ## What Phase 2 will add
 
-- Momentum and Adam optimizers.
-- A comparison of SGD, Momentum, and Adam on the same task.
+- A tensor-based `Value` (numpy backend) to replace the scalar engine.
+- Same API, ~100× faster training.
 - Gradient verification against `torch.autograd`.
 
-Phase 1 stops at SGD on purpose. Every optimizer is judged against SGD;
-you cannot evaluate Momentum or Adam without knowing what plain SGD does.
+Phase 1 stops at three optimizers on scalar values, on purpose. The scalar
+engine is the clearest possible expression of what autograd does. Once the
+ideas are clear, the tensor version becomes a matter of writing faster
+arithmetic, not new math.
