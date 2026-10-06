@@ -1,46 +1,120 @@
-# Autograd Engine — Project Overview
+# Phase 1 — Autograd Engine
 
-Minimal autograd engine + neural network library built from scratch (inspired by micrograd).
+A tiny automatic differentiation engine built from scratch in pure Python.
+No PyTorch, no TensorFlow, no NumPy. Just Python and the chain rule.
+
+This is the mathematical heart of every neural network. Everything that
+comes later (optimizers, tensors, transformers) is built on top of the
+ideas implemented here.
 
 ---
 
-## Core Modules
+## What's inside
 
 | File | Purpose |
-|------|---------|
-| **engine.py** | Core `Value` class: scalar autograd with topological-order reverse-mode backprop. Implements `+`, `*`, `/`, `**`, `tanh`, `exp`, `log`, `relu`, `sigmoid`. |
-| **nn.py** | Neural net building blocks: `Module` (base), `Neuron` (w·x+b + tanh), `Layer` (list of neurons), `MLP` (stack of layers; last layer linear). |
-| **optim.py** | `SGD` optimizer: `step()` updates params via `p.data -= lr * p.grad`. |
-| **viz.py** | GraphViz visualization: `trace()` walks the computation graph, `draw_dot()` renders nodes (data/grad) and op boxes as SVG. |
-| **nn_viz.py** | Matplotlib network diagram: draws MLP layers as circles, connections colored by weight sign/width by magnitude, neuron fill by activation value. |
+|---|---|
+| `engine.py` | The `Value` class: a number that remembers how it was created and can compute its own gradient. |
+| `nn.py` | `Neuron`, `Layer`, `MLP` — the architecture layer built on top of `Value`. |
+| `optim.py` | `SGD` — the update rule that turns gradients into learning. |
+| `viz.py` | Graphviz-based visualization of the computational graph. |
+| `nn_viz.py` | Matplotlib-based diagram of a neural network's architecture. |
 
 ---
 
-## Examples (in `examples/`)
+## Quick example
 
-| Script | What it does | Output |
-|--------|--------------|--------|
-| `visualize_graph.py` | Builds `f = (a*b + a.tanh())*2`, renders graph before/after `backward()` | `assets/graph_before_backward.svg`, `graph_after_backward.svg` |
-| `walkthrough_visual.py` | Step-by-step graph construction (Value → inputs → mul → add → backward), generates HTML walkthrough | `assets/Walkthrough_*.svg`, `walkthrough.html` |
-| `draw_network.py` | Draws MLP(2→4→4→1) architecture clean + with forward-pass activations | `assets/network_clean.svg`, `network_with_values.svg` |
-| `train_moons.py` | Trains MLP(2→8→8→1) on two-moons dataset (500 steps, SGD), plots loss curve + decision boundary | `assets/moons_loss.png`, `moons_decision_boundary.png` |
-| `animate_training.py` | Animates MLP(2→3→1) training on sin·cos data, saves GIF of network evolving | `assets/training_animation.gif` |
-| `gradient_evolution.py` | Trains MLP(2→8→8→1), tracks per-layer gradient L2 norms + loss (log scale) | `assets/gradient_evolution.png` |
-| `make_moons.py` | Dataset generator: two interleaving half-circles with noise | — |
+```python
+from engine import Value
+
+a = Value(2.0)
+b = Value(-3.0)
+c = a * b + a.tanh()
+c.backward()
+
+print(a.grad)   # -3 + (1 - tanh(2)^2)
+print(b.grad)   # 2.0
+```
 
 ---
 
-## Assets (in `assets/`)
+## End-to-end training
 
-| File | Description |
-|------|-------------|
-| `graph_before_backward.svg` | Computation graph before gradients; nodes show `data`, `grad=0` |
-| `graph_after_backward.svg` | Same graph after `backward()`; `grad` fields populated |
-| `Walkthrough_ 01_Value.svg` … `Walkthrough_ 05_backward.svg` | 5-step visual progression: single node → two inputs → multiply → add (shared input) → backward |
-| `walkthrough.html` | Browser-friendly page stitching the 5 SVGs with explanations |
-| `network_clean.svg` | MLP architecture diagram (no activations) |
-| `network_with_values.svg` | Same network with forward-pass activations shown per neuron |
-| `moons_loss.png` | Training loss curve (MSE vs step) for two-moons classification |
-| `moons_decision_boundary.png` | Decision boundary contour (black line at 0.5) overlaid on dataset scatter |
-| `training_animation.gif` | 60-frame GIF: network weights/activations evolving during training |
-| `gradient_evolution.png` | Two panels: (left) log-scale loss decay, (right) log-scale gradient L2 norm per layer over training |
+```bash
+python examples/train_moons.py
+```
+
+Trains an MLP (2 → 8 → 8 → 1) on the two-moons dataset, which is **not**
+linearly separable. Loss goes from 1.05 to 0.02 in 500 steps. The decision
+boundary comes out curved, proving that the hidden layers are contributing
+nonlinearity — something a linear model could never do.
+
+![Loss curve](assets/moons_loss.png)
+![Decision boundary](assets/moons_decision_boundary.png)
+
+---
+
+## Visual walkthrough
+
+```bash
+python examples/walkthrough_visual.py
+```
+
+Generates `assets/walkthrough.html`. Open it in a browser to see the
+computational graph grow step by step: a single `Value`, then two inputs,
+then a multiplication, then an addition where one node feeds two paths,
+and finally the backward pass with gradients filled in.
+
+The last panel is the most important: `a.grad` is the **sum** of its two
+paths, which is what `+=` in `_backward` guarantees.
+
+---
+
+## Tests
+
+```bash
+python tests/run_all.py
+```
+
+- `test_engine.py` — verifies every operation against numerical gradients.
+- `test_nn.py` — verifies the architecture layer: dimensions, parameter counts, forward/backward.
+- `test_optim.py` — verifies SGD's update rule and the ordering contract.
+
+All tests use central differences to check gradients independently of the
+engine itself.
+
+---
+
+## Documentation
+
+For the design rationale behind each file, see `docs/`:
+
+- [`docs/engine.md`](docs/engine.md) — why `Value` is the way it is.
+- [`docs/nn.md`](docs/nn.md) — why `Module`, `Neuron`, `Layer`, `MLP`.
+- [`docs/optim.md`](docs/optim.md) — why `zero_grad` and `step` are separate.
+
+Each document explains the *why*, not the *what*. The code already says
+what it does.
+
+---
+
+## Requirements
+
+- Python 3.10+
+- `graphviz` (Python package) and the Graphviz `dot` binary (for `viz.py`).
+- `matplotlib` (for `nn_viz.py` and the training plots).
+- `numpy` (for dataset generation).
+
+```bash
+pip install graphviz matplotlib numpy
+```
+
+---
+
+## What Phase 2 will add
+
+- Momentum and Adam optimizers.
+- A comparison of SGD, Momentum, and Adam on the same task.
+- Gradient verification against `torch.autograd`.
+
+Phase 1 stops at SGD on purpose. Every optimizer is judged against SGD;
+you cannot evaluate Momentum or Adam without knowing what plain SGD does.
