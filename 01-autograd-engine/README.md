@@ -105,6 +105,27 @@ the right one is to sweep it.
 
 ---
 
+## The ceiling of the scalar engine
+
+    python examples/mnist_scalar.py
+
+Trains a small MLP (64 → 16 → 10) on 200 digits from the sklearn 8x8
+dataset, one sample at a time, with Adam.
+
+It works. Loss drops from 0.68 to 0.09 in 3 epochs. But:
+
+    21 ms per sample
+    ~4 seconds per epoch on 200 samples
+
+Extrapolated to full MNIST (60,000 samples, 784 pixels, 10 epochs):
+
+    ~12 hours of training
+
+A tensor-based engine does the same in ~30 seconds. That gap — roughly
+1,500× — is the entire motivation for phase 2.
+
+---
+
 ## Visual walkthrough
 
 ```bash
