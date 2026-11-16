@@ -1,21 +1,29 @@
 # LLM Internals
 
-I'm building a language model from scratch — tokenizer, attention, training loop, the works — because I got tired of treating transformers like a black box I just import.
+Proyecto de aprendizaje para entender cómo funcionan las redes neuronales construyendo sus componentes desde cero.
 
-This repo is basically my learning log turned into a project: every phase gets built, tested, and explained in my own words before I move on to the next one. No copy-pasting from tutorials without understanding what's underneath.
+## Contenido
 
-## Why
+El repositorio incluye `01-autograd-engine`, un motor de diferenciación automática implementado en Python puro. Calcula gradientes mediante retropropagación y permite entrenar redes neuronales pequeñas sin usar PyTorch ni TensorFlow.
 
-I'm a Computer Engineering student, and most of what I'd done in ML so far was "call the library, get the result." This project is my attempt to actually understand what's happening between the input and the output — the math, the design decisions, the trade-offs — and to have something real to show for it, not just a course certificate.
+La carpeta incluye:
 
-## Phases
+- `engine.py`: la clase `Value`, que representa un número, registra las operaciones que lo producen y calcula sus gradientes.
+- `nn.py`: componentes para crear neuronas, capas y redes MLP.
+- `optim.py`: los optimizadores SGD, Momentum y Adam.
+- `viz.py`: visualización de grafos computacionales con Graphviz.
+- `nn_viz.py`: diagramas de la arquitectura de una red con Matplotlib.
+- `tests/`: pruebas del motor, las redes y los optimizadores.
+- `examples/`: ejemplos de entrenamiento, comparación de optimizadores y visualización del flujo de gradientes.
 
-- [ ] **01 — Autograd engine**: backpropagation and computational graphs, built from scratch (no PyTorch yet)
-- [ ] **02 — Mini-GPT**: tokenizer, self-attention, transformer blocks, and a full training loop for a small language model
-- [ ] **03 — Efficient inference**: LoRA fine-tuning, quantization, and a hand-built KV-cache
+## Ejemplos
 
-Each folder has its own README with details, results, and what I learned along the way — including what didn't work.
+Ejecuta estos comandos desde `01-autograd-engine`:
 
-## Status
-
-Just getting started. Check the commit history for progress.
+```bash
+python examples/train_moons.py
+python examples/compare_optimizers.py
+python examples/hyperparameter_sweep.py
+python examples/mnist_scalar.py
+python examples/walkthrough_visual.py
+python examples/gradient_evolution.py
